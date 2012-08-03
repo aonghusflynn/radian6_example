@@ -91,9 +91,6 @@ __END__
       .r6logo
       %h1
         %img{ :src => '/images/ferrero_logo.png', :alt => 'Ferrero' }
-        %small 
-          High quality, 
-          .smaller crafted precision
     .wrapper
       = yield
     %footer
@@ -102,8 +99,10 @@ __END__
     :javascript
       google.load('jquery', '1.7.1')
       google.load('visualization', '1.0', {
-        'packages': ['corechart']
+        'packages': ['corechart', 'geochart']
       })
+      google.load('webfont', '1.0.28')
+    %script{ :src => '/js/cloud.js' }
     %script{ :src => '/application.js' }
     :javascript
       var Ferrero = new Application()
@@ -116,6 +115,20 @@ __END__
 #brands
   %img{ :src => '/images/conversation_header.png', :height => 65, :width => 580 }
   .radian6{ 'data-url' => '/widget/1595263638', 'data-type' => 'area' }
+#number
+  .radian6{ 'data-url' => '/widget/1595269472', 'data-type' => 'number' }
+  .label Total number of social conversations analysed.
+.searchbubble
+  #bubble
+    .radian6{ 'data-url' => '/widget/1595388509', 'data-type' => 'bubble' }
+  #search
+    .radian6#searchresults{ 'data-url' => '/widget/1595387168', 'data-type' => 'cloud' }
+#map
+  .conv_bubble
+  .radian6{ 'data-url' => '/widget/1595388567', 'data-type' => 'geo' }
+
+#hash
+  .radian6#hashtags{ 'data-url' => '/widget/1595388463', 'data-type' => 'cloud' }
 
 @@ stylesheet
 html, body, div, span, applet, object, iframe,
@@ -169,6 +182,7 @@ body
     background-repeat: repeat-x
     height: 184px
     padding: 20px
+    margin-bottom: 20px
     
     .r6logo
       background: transparent url(/images/r6logo.png) top left no-repeat
@@ -181,23 +195,94 @@ body
       img
         float: left
         margin-right: 20px
-      small
-        display: block
-        padding-top: 7px
-        color: #1F0E00
-        text-transform: uppercase
-        font-size: 120%
-        .smaller
-          font-size: 75%
   
   .wrapper
     #brands
       background: #E5E5E5
       border-top: #C4C4C4 solid 1px
       border-bottom: #C4C4C4 solid 1px
-      margin-top: 20px
       padding: 20px
       min-height: 270px
+      margin-bottom: 20px
+    
+    #number
+      height: 70px
+      padding: 20px
+      background: #a3591d
+      background: -moz-linear-gradient(top,  #a3591d 0%, #e4872c 100%)
+      background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#a3591d), color-stop(100%,#e4872c))
+      background: -webkit-linear-gradient(top,  #a3591d 0%,#e4872c 100%)
+      background: -o-linear-gradient(top,  #a3591d 0%,#e4872c 100%)
+      background: -ms-linear-gradient(top,  #a3591d 0%,#e4872c 100%)
+      background: linear-gradient(to bottom,  #a3591d 0%,#e4872c 100%)
+      filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#a3591d', endColorstr='#e4872c',GradientType=0 )
+      border-top: #B3B3B3 solid 1px
+      border-bottom: #B3B3B3 solid 1px
+      -moz-box-shadow: 0 0 5px #B3B3B3
+      -webkit-box-shadow: 0 0 5px #B3B3B3
+      box-shadow: 0 0 5px #B3B3B3
+      margin-bottom: 20px
+      color: #33180D
+      font-size: 115%
+      
+      .radian6
+        color: white
+        font-size: 300%
+        float: left
+        margin-right: 45px
+        font-family: 'Holtwood One SC', serif
+        margin-top: 10px
+      
+      .label
+        line-height: 25px
+        margin-top: 15px
+
+    .searchbubble
+      height: 301px
+      background: transparent url(/images/table_bg.png) top left no-repeat
+      position: relative
+      margin-bottom: 20px
+    
+    #bubble
+      position: absolute
+      height: 300px
+      width: 280px
+      left: 26px
+
+    #search
+      position: absolute
+      height: 245px
+      width: 245px
+      left: 340px
+      top: 15px
+      .radian6
+        height: 245px
+        width: 245px
+
+    #map
+      position: relative
+      margin-bottom: 20px
+      height: 388px
+      .conv_bubble
+        height: 66px
+        width: 109px
+        position: absolute
+        top: 20px
+        left: 20px
+        background: transparent url(/images/conv_bubble.png) top left no-repeat
+        z-index: 1
+    
+    #hash
+      background: transparent url(/images/hashtags_bg.png) 20px 0 no-repeat
+      height: 273px
+      margin-bottom: 20px
+      position: relative
+      .radian6
+        height: 290px
+        width: 535px
+        position: absolute
+        top: 0px
+        left: 40px
 
 .loading
   height: 80px
@@ -223,18 +308,14 @@ class Widget
     
     @showLoading()
   
-  init: (data) ->
-    data = data.widgetOutput.dataitems.dataitem.graphData
+  init: (data) ->  
+    if @settings.dataCallback?
+      @settings.dataCallback.call this, data
+    if @settings.type == 'number'
+      return @el.empty().text(data.widgetOutput.dataitems['@postcount'])
+    if @settings.type == 'cloud'
+      return @renderCloud(data)
     
-    @data = new google.visualization.DataTable();
-    @data.addColumn 'date', 'Date'
-    @data.addColumn 'number', name for name in @extractWords data.sphinxInfo.info
-    
-    @data.addRows data.dataPoint.length
-    for index, dataPoint of data.dataPoint
-      @data.setValue parseInt(index), 0, new Date(dataPoint['@actual'])
-      for key, value of dataPoint.plot
-        @data.setValue parseInt(index), parseInt(key) + 1, parseInt(value)
     
     @chart = new google.visualization[@getType()](@el.get(0))
     @hideLoading()
@@ -250,7 +331,12 @@ class Widget
         'GeoChart'
       else
         'LineChart'
-        
+  
+  renderCloud: () ->
+    @el.empty()
+    for item in @data
+      @el.append '<span data-weight="' + item.value + '">' + item.word + '</span>'
+    @el.awesomeCloud @settings
   
   extractWords: (arr) ->
     arr.map (val, idx) ->
@@ -277,6 +363,10 @@ $.fn.radian6.Constructor = Widget
 
 class @Application
   constructor: ->
+    WebFont.load
+      google:
+        families: ['Holtwood+One+SC::latin']
+    
     $('#brands .radian6').radian6
       height: 197
       chartArea:
@@ -295,3 +385,99 @@ class @Application
         baselineColor: '#FA8A28'
         gridlines:
           color: '#FA8A28'
+      dataCallback: (data) ->
+        data = data.widgetOutput.dataitems.dataitem.graphData
+        @data = new google.visualization.DataTable()
+        @data.addColumn 'date', 'Date'
+        @data.addColumn 'number', name for name in @extractWords data.sphinxInfo.info
+
+        @data.addRows data.dataPoint.length
+        $.each data.dataPoint, (index, dataPoint) =>
+          @data.setValue parseInt(index), 0, new Date(dataPoint['@actual'])
+          $.each dataPoint.plot, (key, value) =>
+            @data.setValue parseInt(index), parseInt(key) + 1, parseInt(value)
+        
+    $('#number .radian6').radian6()
+    $('#map .radian6').radian6
+      dataCallback: (data) ->
+        data = data.widgetOutput.dataitems.dataitem
+        arr = []
+        arr.push ['Country', 'Total Count']
+        for value in data.value
+          arr.push [value.label, parseInt(value.count)]
+        @data = google.visualization.arrayToDataTable arr
+    $('#hash .radian6').radian6
+      size:
+        grid: 16
+        factor: 0
+        normalize: true
+      options:
+        color: 'random-dark'
+        rotationRatio: 0.2
+        printMultiplier: 3
+        sort: 'random'
+      font: 'Helvetica, Arial, sans-serif'
+      shape: 'circle'
+      dataCallback: (data) ->
+        data = data.widgetOutput.dataitems.dataitem
+        @data = []
+        for item in data
+          @data.push
+            word: item.name
+            value: item.value.count
+    $('#search .radian6').radian6
+      size:
+        grid: 16
+        factor: 0
+        normalize: false
+      options:
+        color: 'random-dark'
+        rotationRatio: 0.2
+        printMultiplier: 3
+        sort: 'highest'
+      font: 'Helvetica, Arial, sans-serif'
+      shape: 'square'
+      dataCallback: (data) ->
+        data = data.widgetOutput.dataitems.dataitem
+        @data = []
+        for item in data
+          if item.key? and item.value?
+            @data.push
+              word: item.key.split('"')[1]
+              value: item.value
+    $('#bubble .radian6').radian6
+      backgroundColor: 'transparent'
+      width: 280
+      height: 300
+      legend:
+        position: 'none'
+      hAxis:
+        textPosition: 'none'
+        baselineColor: 'transparent'
+        gridlines:
+          color: 'transparent'
+        minValue: 10
+        maxValue: 120
+        viewWindowMode: 'pretty'
+      vAxis:
+        textPosition: 'none'
+        baselineColor: 'transparent'
+        gridlines:
+          color: 'transparent'
+        minValue: 10
+        maxValue: 120
+        viewWindowMode: 'pretty'
+      chartArea:
+        left: 0
+        width: 280
+        height: 300
+      sizeAxis:
+        maxSize: 60
+        minSize: 20
+      dataCallback: (data) ->
+        data = data.widgetOutput.dataitems.dataitem
+        arr = []
+        arr.push ['ID', 'x', 'y', 'Network', 'count']
+        for item in data.value
+          arr.push [item.label, Math.floor(Math.random() * (80 - 20 + 1)) + 20, Math.floor(Math.random() * (80 - 20 + 1)) + 20, item.label, parseInt(item.count)]
+        @data = google.visualization.arrayToDataTable arr
