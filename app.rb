@@ -119,8 +119,8 @@ __END__
   .radian6{ 'data-url' => '/widget/1595269472', 'data-type' => 'number' }
   .label Total number of social conversations analysed.
 .searchbubble
-  #bubble
-    .radian6{ 'data-url' => '/widget/1595388509', 'data-type' => 'bubble' }
+  #pie
+    .radian6{ 'data-url' => '/widget/1595388509', 'data-type' => 'pie' }
   #search
     .radian6#searchresults{ 'data-url' => '/widget/1595387168', 'data-type' => 'cloud' }
 #map
@@ -128,7 +128,7 @@ __END__
   .radian6{ 'data-url' => '/widget/1595388567', 'data-type' => 'geo' }
 
 #hash
-  .radian6#hashtags{ 'data-url' => '/widget/1595388463', 'data-type' => 'cloud' }
+  .radian6#hashtags{ 'data-url' => '/widget/1595388463', 'data-type' => 'bar' }
 
 @@ stylesheet
 html, body, div, span, applet, object, iframe,
@@ -278,10 +278,10 @@ body
       margin-bottom: 20px
       position: relative
       .radian6
-        height: 290px
+        height: 250px
         width: 535px
         position: absolute
-        top: 0px
+        top: 10px
         left: 40px
 
 .loading
@@ -316,10 +316,10 @@ class Widget
     if @settings.type == 'cloud'
       return @renderCloud(data)
     
-    
-    @chart = new google.visualization[@getType()](@el.get(0))
     @hideLoading()
-    @chart.draw @data, @settings
+    @chart = new google.visualization[@getType()](@el.get(0))
+    delete @settings.type
+    @chart.draw(@data, @settings)
   
   getType: ->
     switch (@settings.type or '').toLowerCase()
@@ -329,6 +329,10 @@ class Widget
         'BubbleChart'
       when 'geo', 'geochart'
         'GeoChart'
+      when 'bar', 'barchart'
+        'BarChart'
+      when 'pie', 'piechart'
+        'PieChart'
       else
         'LineChart'
   
@@ -407,24 +411,19 @@ class @Application
           arr.push [value.label, parseInt(value.count)]
         @data = google.visualization.arrayToDataTable arr
     $('#hash .radian6').radian6
-      size:
-        grid: 16
-        factor: 0
-        normalize: true
-      options:
-        color: 'random-dark'
-        rotationRatio: 0.2
-        printMultiplier: 3
-        sort: 'random'
-      font: 'Helvetica, Arial, sans-serif'
-      shape: 'circle'
+      backgroundColor: 'transparent'
+      height: 250
+      legend:
+        position: 'none'
+      colors: ['#33180D']
       dataCallback: (data) ->
-        data = data.widgetOutput.dataitems.dataitem
-        @data = []
+        data = data.widgetOutput.dataitems.dataitem.filter (item) ->
+          parseInt(item.value.count) > 0
+        arr = []
+        arr.push ['Hash Tag', 'Count']
         for item in data
-          @data.push
-            word: item.name
-            value: item.value.count
+          arr.push [item.name, parseInt(item.value.count)]
+        @data = google.visualization.arrayToDataTable arr
     $('#search .radian6').radian6
       size:
         grid: 16
@@ -445,9 +444,9 @@ class @Application
             @data.push
               word: item.key.split('"')[1]
               value: item.value
-    $('#bubble .radian6').radian6
+    $('#pie .radian6').radian6
       backgroundColor: 'transparent'
-      width: 280
+      width: 300
       height: 300
       legend:
         position: 'none'
@@ -468,8 +467,8 @@ class @Application
         maxValue: 120
         viewWindowMode: 'pretty'
       chartArea:
-        left: 0
-        width: 280
+        left: 35
+        width: 270
         height: 300
       sizeAxis:
         maxSize: 60
@@ -477,7 +476,7 @@ class @Application
       dataCallback: (data) ->
         data = data.widgetOutput.dataitems.dataitem
         arr = []
-        arr.push ['ID', 'x', 'y', 'Network', 'count']
+        arr.push ['Source', 'Count']
         for item in data.value
-          arr.push [item.label, Math.floor(Math.random() * (80 - 20 + 1)) + 20, Math.floor(Math.random() * (80 - 20 + 1)) + 20, item.label, parseInt(item.count)]
+          arr.push [item.label, parseInt(item.count)]
         @data = google.visualization.arrayToDataTable arr
