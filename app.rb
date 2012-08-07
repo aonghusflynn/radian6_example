@@ -7,6 +7,7 @@ require 'rest_client'
 require 'nori'
 require 'digest/md5'
 require 'json'
+require 'dalli'
 
 class Radian6
   def initialize
@@ -49,7 +50,24 @@ configure do
   set :app_file, __FILE__
   set :port, ENV['PORT']
   set :public_folder, File.expand_path(File.join(File.dirname(__FILE__), 'public'))
+  set :cache, Dalli::Client.new(ENV['MEMCACHE_SERVERS'],
+                                :username => ENV['MEMCACHE_USERNAME'],
+                                :password => ENV['MEMCACHE_PASSWORD'],
+                                :expires_in => 3600) if production?
   enable :inline_templates
+end
+
+helpers do
+  def cache(key, &block)
+    if production?
+      unless settings.cache.get key
+        settings.cache.set key, yield(key)
+      end
+      settings.cache.get key
+    else
+      yield key
+    end
+  end
 end
 
 get '/' do
@@ -57,7 +75,9 @@ get '/' do
 end
 
 get '/widget/:id' do
-  Radian6.instance.widget(params[:id]).to_json
+  cache(params[:id]) do |key|
+    Radian6.instance.widget(key).to_json
+  end
 end
 
 get '/stylesheet.css' do
@@ -243,11 +263,11 @@ body
       position: relative
       margin-bottom: 20px
     
-    #bubble
+    #pie
       position: absolute
       height: 300px
       width: 280px
-      left: 26px
+      margin-left: 27px
 
     #search
       position: absolute
@@ -446,7 +466,7 @@ class @Application
               value: item.value
     $('#pie .radian6').radian6
       backgroundColor: 'transparent'
-      width: 300
+      width: 280
       height: 300
       legend:
         position: 'none'
@@ -467,8 +487,8 @@ class @Application
         maxValue: 120
         viewWindowMode: 'pretty'
       chartArea:
-        left: 35
-        width: 270
+        left: 10
+        width: 260
         height: 300
       sizeAxis:
         maxSize: 60
