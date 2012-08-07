@@ -423,6 +423,9 @@ class @Application
         
     $('#number .radian6').radian6()
     $('#map .radian6').radian6
+      colorAxis:
+        minValue: 0
+        colors: ['#d39c4e', '#4b2425']
       dataCallback: (data) ->
         data = data.widgetOutput.dataitems.dataitem
         arr = []
@@ -449,8 +452,11 @@ class @Application
         grid: 16
         factor: 0
         normalize: false
+      color:
+        start: '#d39c4e'
+        end: '#4b2425'
       options:
-        color: 'random-dark'
+        color: 'gradient'
         rotationRatio: 0.2
         printMultiplier: 3
         sort: 'highest'
@@ -468,6 +474,7 @@ class @Application
       backgroundColor: 'transparent'
       width: 280
       height: 300
+      colors: ['#2c190a', '#4b2425', '#845f49', '#c4962e', '#c99b34', '#f2c76a', '#f0a62d', '#d5c979', '#d7b980', '#d39c4e']
       legend:
         position: 'none'
       hAxis:
