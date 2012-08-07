@@ -446,6 +446,7 @@ $ ->
     width: 280
     height: 300
     colors: ['#2c190a', '#4b2425', '#845f49', '#c4962e', '#c99b34', '#f2c76a', '#f0a62d', '#d5c979', '#d7b980', '#d39c4e']
+    pieSliceText: 'label'
     legend:
       position: 'none'
     hAxis:
