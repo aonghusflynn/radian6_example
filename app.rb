@@ -11,16 +11,12 @@ require 'dalli'
 
 class Radian6
   def initialize
-    user = 'ccoenen@salesforce.com'
-    pass = Digest::MD5.hexdigest 'SFDC1234'
-    @key = '7ya9948hm2g32k94dc9sfbcu'
-    @url = 'https://api.radian6.com/socialcloud/v1'
-    auth = Nori.parse RestClient.get "#{@url}/auth/authenticate", {
-      "auth_appkey" => @key,
-      "auth_user"   => user,
-      "auth_pass"   => pass
-    }
-    @token = auth['auth']['token']
+    @url   = 'https://api.radian6.com/socialcloud/v1'
+    @token = Nori.parse(RestClient.get("#{@url}/auth/authenticate", {
+      'auth_appkey' => ENV['RADIAN6_KEY'],
+      'auth_user'   => ENV['RADIAN6_USER'],
+      'auth_pass'   => Digest::MD5.hexdigest(ENV['RADIAN6_PASS'])
+    }))['auth']['token']
   end
   
   @@instance = Radian6.new
@@ -33,7 +29,7 @@ class Radian6
     false unless id
     Nori.parse RestClient.get "#{@url}/data/widget/#{id}", {
       'auth_token' => @token,
-      'auth_appkey' => @key
+      'auth_appkey' => ENV['RADIAN6_KEY']
     }
   end
 end
@@ -42,18 +38,14 @@ if development?
   require 'rack-livereload'
   require 'sinatra/reloader'
   use Rack::LiveReload
+  $stdout.sync = true
 end
 
 configure do
-  $stdout.sync = true
-  
   set :app_file, __FILE__
   set :port, ENV['PORT']
   set :public_folder, File.expand_path(File.join(File.dirname(__FILE__), 'public'))
-  set :cache, Dalli::Client.new(ENV['MEMCACHE_SERVERS'],
-                                :username => ENV['MEMCACHE_USERNAME'],
-                                :password => ENV['MEMCACHE_PASSWORD'],
-                                :expires_in => 3600) if production?
+  set :cache, Dalli::Client.new(ENV['MEMCACHE_SERVERS'], :username => ENV['MEMCACHE_USERNAME'], :password => ENV['MEMCACHE_PASSWORD'], :expires_in => 3600) if production?
   enable :inline_templates
 end
 
@@ -96,10 +88,9 @@ __END__
 !!! 5
 %html{ :lang => "en" }
   %head
+    %title Ferrero
     %meta{ :charset => "utf-8" }
     %meta{ "http-equiv" => "X-UA-Compatible", :content => "IE=edge,chrome=1" }
-    
-    %title Ferrero
     %meta{ :name => "author", :content => "Thomas Stachl" }
     %meta{ :name => "description", :content => "Ferrero Radian6 Demo" }
     %meta{ :name => "viewport", :content => "width=device-width, initial-scale=1.0" }
@@ -124,12 +115,12 @@ __END__
       google.load('webfont', '1.0.28')
     %script{ :src => '/js/cloud.js' }
     %script{ :src => '/application.js' }
-    :javascript
-      var Ferrero = new Application()
-      var _gaq=[["_setAccount","UA-XXXXX-X"],["_trackPageview"],["_trackPageLoadTime"]];
-      (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.async=1;
-      g.src=("https:"==location.protocol?"//ssl":"//www")+".google-analytics.com/ga.js";
-      s.parentNode.insertBefore(g,s)}(document,"script"));
+    - if production?
+      :javascript
+        var _gaq=[["_setAccount","UA-32104003-4"],["_trackPageview"],["_trackPageLoadTime"]];
+        (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.async=1;
+        g.src=("https:"==location.protocol?"//ssl":"//www")+".google-analytics.com/ga.js";
+        s.parentNode.insertBefore(g,s)}(document,"script"));
 
 @@ index
 #brands
@@ -170,25 +161,6 @@ time, mark, audio, video
   font-size: 100%
   font: inherit
   vertical-align: baseline
-
-article, aside, details, figcaption, figure, 
-footer, header, hgroup, menu, nav, section
-  display: block
-
-ol, ul
-  list-style: none
-
-blockquote, q
-  quotes: none
-
-blockquote:before, blockquote:after,
-q:before, q:after
-  content: ''
-  content: none
-
-table
-  border-collapse: collapse
-  border-spacing: 0
 
 body
   line-height: 1
@@ -385,125 +357,124 @@ $.fn.radian6 = (options = {}) ->
 
 $.fn.radian6.Constructor = Widget
 
-class @Application
-  constructor: ->
-    WebFont.load
-      google:
-        families: ['Holtwood+One+SC::latin']
+WebFont.load
+  google:
+    families: ['Holtwood+One+SC::latin']
     
-    $('#brands .radian6').radian6
-      height: 197
-      chartArea:
-        left: 50
-        top: 10
-        width: 530
-        height: 132
-      backgroundColor: '#E5E5E5'
-      colors: ['white', '#88070C', '#DAC880', '#16732E', '#BF1919']
-      legend:
-        position: 'top'
-      hAxis:
-        baseline: 0
-        slantedText: true
-      vAxis:
-        baselineColor: '#FA8A28'
-        gridlines:
-          color: '#FA8A28'
-      dataCallback: (data) ->
-        data = data.widgetOutput.dataitems.dataitem.graphData
-        @data = new google.visualization.DataTable()
-        @data.addColumn 'date', 'Date'
-        @data.addColumn 'number', name for name in @extractWords data.sphinxInfo.info
+$ ->
+  $('#brands .radian6').radian6
+    height: 197
+    chartArea:
+      left: 50
+      top: 10
+      width: 530
+      height: 132
+    backgroundColor: '#E5E5E5'
+    colors: ['white', '#88070C', '#DAC880', '#16732E', '#BF1919']
+    legend:
+      position: 'top'
+    hAxis:
+      baseline: 0
+      slantedText: true
+    vAxis:
+      baselineColor: '#FA8A28'
+      gridlines:
+        color: '#FA8A28'
+    dataCallback: (data) ->
+      data = data.widgetOutput.dataitems.dataitem.graphData
+      @data = new google.visualization.DataTable()
+      @data.addColumn 'date', 'Date'
+      @data.addColumn 'number', name for name in @extractWords data.sphinxInfo.info
 
-        @data.addRows data.dataPoint.length
-        $.each data.dataPoint, (index, dataPoint) =>
-          @data.setValue parseInt(index), 0, new Date(dataPoint['@actual'])
-          $.each dataPoint.plot, (key, value) =>
-            @data.setValue parseInt(index), parseInt(key) + 1, parseInt(value)
-        
-    $('#number .radian6').radian6()
-    $('#map .radian6').radian6
-      colorAxis:
-        minValue: 0
-        colors: ['#d39c4e', '#4b2425']
-      dataCallback: (data) ->
-        data = data.widgetOutput.dataitems.dataitem
-        arr = []
-        arr.push ['Country', 'Total Count']
-        for value in data.value
-          arr.push [value.label, parseInt(value.count)]
-        @data = google.visualization.arrayToDataTable arr
-    $('#hash .radian6').radian6
-      backgroundColor: 'transparent'
-      height: 250
-      legend:
-        position: 'none'
-      colors: ['#33180D']
-      dataCallback: (data) ->
-        data = data.widgetOutput.dataitems.dataitem.filter (item) ->
-          parseInt(item.value.count) > 0
-        arr = []
-        arr.push ['Hash Tag', 'Count']
-        for item in data
-          arr.push [item.name, parseInt(item.value.count)]
-        @data = google.visualization.arrayToDataTable arr
-    $('#search .radian6').radian6
-      size:
-        grid: 16
-        factor: 0
-        normalize: false
-      color:
-        start: '#d39c4e'
-        end: '#4b2425'
-      options:
-        color: 'gradient'
-        rotationRatio: 0.2
-        printMultiplier: 3
-        sort: 'highest'
-      font: 'Helvetica, Arial, sans-serif'
-      shape: 'square'
-      dataCallback: (data) ->
-        data = data.widgetOutput.dataitems.dataitem
-        @data = []
-        for item in data
-          if item.key? and item.value?
-            @data.push
-              word: item.key.split('"')[1]
-              value: item.value
-    $('#pie .radian6').radian6
-      backgroundColor: 'transparent'
-      width: 280
+      @data.addRows data.dataPoint.length
+      $.each data.dataPoint, (index, dataPoint) =>
+        @data.setValue parseInt(index), 0, new Date(dataPoint['@actual'])
+        $.each dataPoint.plot, (key, value) =>
+          @data.setValue parseInt(index), parseInt(key) + 1, parseInt(value)
+    
+  $('#number .radian6').radian6()
+  $('#map .radian6').radian6
+    colorAxis:
+      minValue: 0
+      colors: ['#d39c4e', '#4b2425']
+    dataCallback: (data) ->
+      data = data.widgetOutput.dataitems.dataitem
+      arr = []
+      arr.push ['Country', 'Total Count']
+      for value in data.value
+        arr.push [value.label, parseInt(value.count)]
+      @data = google.visualization.arrayToDataTable arr
+  $('#hash .radian6').radian6
+    backgroundColor: 'transparent'
+    height: 250
+    legend:
+      position: 'none'
+    colors: ['#33180D']
+    dataCallback: (data) ->
+      data = data.widgetOutput.dataitems.dataitem.filter (item) ->
+        parseInt(item.value.count) > 0
+      arr = []
+      arr.push ['Hash Tag', 'Count']
+      for item in data
+        arr.push [item.name, parseInt(item.value.count)]
+      @data = google.visualization.arrayToDataTable arr
+  $('#search .radian6').radian6
+    size:
+      grid: 16
+      factor: 0
+      normalize: false
+    color:
+      start: '#d39c4e'
+      end: '#4b2425'
+    options:
+      color: 'gradient'
+      rotationRatio: 0.2
+      printMultiplier: 3
+      sort: 'highest'
+    font: 'Helvetica, Arial, sans-serif'
+    shape: 'square'
+    dataCallback: (data) ->
+      data = data.widgetOutput.dataitems.dataitem
+      @data = []
+      for item in data
+        if item.key? and item.value?
+          @data.push
+            word: item.key.split('"')[1]
+            value: item.value
+  $('#pie .radian6').radian6
+    backgroundColor: 'transparent'
+    width: 280
+    height: 300
+    colors: ['#2c190a', '#4b2425', '#845f49', '#c4962e', '#c99b34', '#f2c76a', '#f0a62d', '#d5c979', '#d7b980', '#d39c4e']
+    legend:
+      position: 'none'
+    hAxis:
+      textPosition: 'none'
+      baselineColor: 'transparent'
+      gridlines:
+        color: 'transparent'
+      minValue: 10
+      maxValue: 120
+      viewWindowMode: 'pretty'
+    vAxis:
+      textPosition: 'none'
+      baselineColor: 'transparent'
+      gridlines:
+        color: 'transparent'
+      minValue: 10
+      maxValue: 120
+      viewWindowMode: 'pretty'
+    chartArea:
+      left: 10
+      width: 260
       height: 300
-      colors: ['#2c190a', '#4b2425', '#845f49', '#c4962e', '#c99b34', '#f2c76a', '#f0a62d', '#d5c979', '#d7b980', '#d39c4e']
-      legend:
-        position: 'none'
-      hAxis:
-        textPosition: 'none'
-        baselineColor: 'transparent'
-        gridlines:
-          color: 'transparent'
-        minValue: 10
-        maxValue: 120
-        viewWindowMode: 'pretty'
-      vAxis:
-        textPosition: 'none'
-        baselineColor: 'transparent'
-        gridlines:
-          color: 'transparent'
-        minValue: 10
-        maxValue: 120
-        viewWindowMode: 'pretty'
-      chartArea:
-        left: 10
-        width: 260
-        height: 300
-      sizeAxis:
-        maxSize: 60
-        minSize: 20
-      dataCallback: (data) ->
-        data = data.widgetOutput.dataitems.dataitem
-        arr = []
-        arr.push ['Source', 'Count']
-        for item in data.value
-          arr.push [item.label, parseInt(item.count)]
-        @data = google.visualization.arrayToDataTable arr
+    sizeAxis:
+      maxSize: 60
+      minSize: 20
+    dataCallback: (data) ->
+      data = data.widgetOutput.dataitems.dataitem
+      arr = []
+      arr.push ['Source', 'Count']
+      for item in data.value
+        arr.push [item.label, parseInt(item.count)]
+      @data = google.visualization.arrayToDataTable arr
